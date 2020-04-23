@@ -1,7 +1,6 @@
 // Copyright (c) 2020 Daniel Zimmerman
 
-#ifndef LLVM_TOOLS_ZLD_H
-#define LLVM_TOOLS_ZLD_H
+#pragma once
 
 #include "llvm/Support/CommandLine.h"
 
@@ -14,5 +13,3 @@ extern cl::opt<bool> Dummy;
 } // end namespace zld
 
 } // end namespace llvm
-
-#endif // LLVM_TOOLS_ZLD_H

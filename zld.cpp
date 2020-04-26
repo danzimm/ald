@@ -138,8 +138,16 @@ private:
     }
     Triple_ = triple_map.begin()->second->ObjectFile->makeTriple();
 
-    reportStatus("Linking binary with architecture '" + Triple_.getArchName() +
-                 "'");
+    switch (Triple_.getArch()) {
+    case Triple::ArchType::aarch64:
+    case Triple::ArchType::x86_64:
+      reportStatus("Linking binary with architecture '" +
+                   Triple_.getArchName() + "'");
+      break;
+    default:
+      reportToolError("Unable to link unsupported architecture '" +
+                      Triple::getArchTypePrefix(Triple_.getArch()) + "'");
+    }
   }
 
   struct LoadedFile {

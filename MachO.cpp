@@ -12,7 +12,7 @@ namespace zld {
   }                                                                            \
   auto x = *x##OrErr
 
-uint32_t MachO::Builder::BuildHeaderFlags() const {
+uint32_t MachO::Builder::buildHeaderFlags() const {
   uint32_t result = MH_NOUNDEFS | MH_DYLDLINK | MH_TWOLEVEL | MH_PIE;
 
 #if 0
@@ -31,7 +31,7 @@ uint32_t MachO::Builder::BuildHeaderFlags() const {
 }
 
 Expected<mach_header_64>
-MachO::Builder::BuildHeader(uint32_t LoadCommandsSize) const {
+MachO::Builder::buildHeader(uint32_t LoadCommandsSize) const {
   mach_header_64 hdr;
   hdr.magic = MH_MAGIC_64;
 
@@ -47,19 +47,19 @@ MachO::Builder::BuildHeader(uint32_t LoadCommandsSize) const {
   hdr.ncmds = LoadCommands_.size();
   hdr.sizeofcmds = LoadCommandsSize;
 
-  hdr.flags = BuildHeaderFlags();
+  hdr.flags = buildHeaderFlags();
   hdr.reserved = 0;
 
   return hdr;
 }
 
-Expected<std::unique_ptr<MemoryBuffer>> MachO::Builder::Build() const {
+Expected<std::unique_ptr<MemoryBuffer>> MachO::Builder::build() const {
   uint32_t LoadCommandsSize = 0;
 
-  auto HeaderOrErr = BuildHeader(LoadCommandsSize);
+  auto HeaderOrErr = buildHeader(LoadCommandsSize);
   CheckErr(Header);
 
-  size_t TotalSize = sizeof(struct mach_header_64);
+  size_t TotalSize = sizeof(mach_header_64);
 
   std::unique_ptr<WritableMemoryBuffer> Result =
       WritableMemoryBuffer::getNewUninitMemBuffer(TotalSize);

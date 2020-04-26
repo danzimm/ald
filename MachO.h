@@ -16,25 +16,25 @@ namespace zld {
 class LoadCommand {
 public:
   virtual ~LoadCommand() {}
-  virtual load_command *BuildCmd() = 0;
-  virtual uint32_t Size() = 0;
+  virtual load_command *buildCmd() = 0;
+  virtual uint32_t size() = 0;
 };
 
 class MachO {
 public:
   class Builder {
 
-    void SetTriple(const Triple &T) { Triple_ = T; }
+    void setTriple(const Triple &T) { Triple_ = T; }
 
-    void AddLoadCommand(std::unique_ptr<LoadCommand> LC) {
+    void addLoadCommand(std::unique_ptr<LoadCommand> LC) {
       LoadCommands_.push_back(std::move(LC));
     }
 
-    Expected<std::unique_ptr<MemoryBuffer>> Build() const;
+    Expected<std::unique_ptr<MemoryBuffer>> build() const;
 
   private:
-    uint32_t BuildHeaderFlags() const;
-    Expected<mach_header_64> BuildHeader(uint32_t LoadCommandsSize) const;
+    uint32_t buildHeaderFlags() const;
+    Expected<mach_header_64> buildHeader(uint32_t LoadCommandsSize) const;
 
     Triple Triple_;
     std::vector<std::unique_ptr<LoadCommand>> LoadCommands_;

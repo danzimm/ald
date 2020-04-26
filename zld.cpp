@@ -17,6 +17,12 @@ static cl::OptionCategory ZldCat("zld Options");
 cl::opt<bool> zld::Dummy("dummy", cl::desc("Dummy arg to sanity check cli"),
                          cl::cat(ZldCat));
 
+static cl::opt<std::string> OutputFilename("out", cl::desc("[output filename]"),
+                                           cl::cat(ZldCat));
+static cl::alias OutputFilenameShort("o", cl::desc("Alias for --out"),
+                                     cl::NotHidden, cl::Grouping,
+                                     cl::aliasopt(OutputFilename));
+
 static cl::list<std::string> InputFilenames(cl::Positional,
                                             cl::desc("<input object files>"),
                                             cl::ZeroOrMore, cl::cat(ZldCat));
@@ -179,6 +185,10 @@ int main(int argc, char **argv) {
   if (InputFilenames.empty()) {
     InputFilenames.push_back("a.out");
   }
+  // Defaults to Input[0] + .bin
+  if (OutputFilename.size() == 0) {
+    OutputFilename = InputFilenames[0] + ".bin";
+  }
 
   ToolName = argv[0];
 
@@ -189,7 +199,8 @@ int main(int argc, char **argv) {
   Context Ctx;
   Ctx.loadFiles(InputFilenames);
 
-  reportStatus("Successfully started up");
+  reportStatus("Successfully started up, will write to '" + OutputFilename +
+               "'");
 
   return EXIT_SUCCESS;
 }

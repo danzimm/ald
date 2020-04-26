@@ -38,6 +38,15 @@ void reportWarning(Twine Message, StringRef File) {
 }
 #endif
 
+void printToolError(Twine Message) {
+  WithColor::error(errs(), ToolName) << Message << "\n";
+}
+
+LLVM_ATTRIBUTE_NORETURN void reportToolError(Twine Message) {
+  printToolError(Message);
+  exit(1);
+}
+
 LLVM_ATTRIBUTE_NORETURN void reportError(StringRef File, Twine Message) {
   WithColor::error(errs(), ToolName) << "'" << File << "': " << Message << "\n";
   exit(1);
@@ -68,7 +77,6 @@ T unwrapOrError(Expected<T> EO, Ts &&... Args) {
     return std::move(*EO);
   }
   reportError(EO.takeError(), std::forward<Ts>(Args)...);
-
 }
 
 static void reportStatus(Twine Message) {
@@ -91,6 +99,7 @@ public:
     LoadedFiles_.reserve(Filenames.size());
     llvm::for_each(Filenames,
                    [this](StringRef Filename) { this->LoadFile(Filename); });
+    ValidateLoadedFiles_();
   }
 
 private:
@@ -101,9 +110,9 @@ private:
     if (ObjectFile *O = dyn_cast<ObjectFile>(&Binary)) {
       if (MachOObjectFile *MachO = dyn_cast<MachOObjectFile>(O)) {
         LoadedFiles_.push_back(LoadedFile{
-          .Name = Filename,
-          .Bin = std::move(OBinary),
-          .ObjectFile = MachO,
+            .Name = Filename,
+            .Bin = std::move(OBinary),
+            .ObjectFile = MachO,
         });
         reportStatus("  Loaded " + Filename);
       } else {
@@ -114,6 +123,25 @@ private:
     }
   }
 
+  void ValidateLoadedFiles_() {
+    std::map<Triple::ArchType, const LoadedFile *> triple_map;
+    llvm::for_each(LoadedFiles_, [&triple_map](const LoadedFile &LF) {
+      triple_map[LF.ObjectFile->getArch()] = &LF;
+    });
+    if (triple_map.size() != 1) {
+      printToolError("Unsure which architecture to link:");
+      for (auto &mapping : triple_map) {
+        printToolError("  " + Triple::getArchTypePrefix(mapping.first).str() +
+                       " (" + mapping.second->Name + ")");
+      }
+      reportToolError("Please ensure all inputs have the same architecture");
+    }
+    Triple_ = triple_map.begin()->second->ObjectFile->makeTriple();
+
+    reportStatus("Linking binary with architecture '" + Triple_.getArchName() +
+                 "'");
+  }
+
   struct LoadedFile {
     StringRef Name;
     OwningBinary<Binary> Bin;
@@ -121,7 +149,6 @@ private:
   };
 
   std::vector<LoadedFile> LoadedFiles_;
-
   Triple Triple_;
 };
 

@@ -6,6 +6,8 @@
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/WithColor.h"
 
+#include <map>
+
 using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::zld;
@@ -66,6 +68,7 @@ T unwrapOrError(Expected<T> EO, Ts &&... Args) {
     return std::move(*EO);
   }
   reportError(EO.takeError(), std::forward<Ts>(Args)...);
+
 }
 
 static void reportStatus(Twine Message) {
@@ -83,34 +86,43 @@ class Context {
 public:
   Context() {}
 
-  void LoadBins(const std::vector<std::string> &Filenames) {
+  void LoadFiles(const std::vector<std::string> &Filenames) {
     reportStatus("Loading binaries...");
-    Bins.reserve(Filenames.size());
-    ObjectFiles.reserve(Filenames.size());
+    LoadedFiles_.reserve(Filenames.size());
     llvm::for_each(Filenames,
-                   [this](StringRef Filename) { this->LoadBin(Filename); });
+                   [this](StringRef Filename) { this->LoadFile(Filename); });
   }
 
 private:
-  void LoadBin(StringRef Filename) {
+  void LoadFile(StringRef Filename) {
     OwningBinary<Binary> OBinary =
         unwrapOrError(createBinary(Filename), Filename);
     Binary &Binary = *OBinary.getBinary();
     if (ObjectFile *O = dyn_cast<ObjectFile>(&Binary)) {
       if (MachOObjectFile *MachO = dyn_cast<MachOObjectFile>(O)) {
-        ObjectFiles.push_back(MachO);
+        LoadedFiles_.push_back(LoadedFile{
+          .Name = Filename,
+          .Bin = std::move(OBinary),
+          .ObjectFile = MachO,
+        });
+        reportStatus("  Loaded " + Filename);
       } else {
         reportError(Filename, "not a mach-o object file");
       }
     } else {
       reportError(Filename, "not an object file");
     }
-    Bins.emplace_back(std::move(OBinary));
-    reportStatus("  Loaded " + Filename);
   }
 
-  std::vector<OwningBinary<Binary>> Bins;
-  std::vector<MachOObjectFile *> ObjectFiles;
+  struct LoadedFile {
+    StringRef Name;
+    OwningBinary<Binary> Bin;
+    MachOObjectFile *ObjectFile;
+  };
+
+  std::vector<LoadedFile> LoadedFiles_;
+
+  Triple Triple_;
 };
 
 } // namespace
@@ -140,7 +152,7 @@ int main(int argc, char **argv) {
   }
 
   Context Ctx;
-  Ctx.LoadBins(InputFilenames);
+  Ctx.LoadFiles(InputFilenames);
 
   reportStatus("Successfully started up");
 

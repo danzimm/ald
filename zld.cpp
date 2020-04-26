@@ -94,16 +94,16 @@ class Context {
 public:
   Context() {}
 
-  void LoadFiles(const std::vector<std::string> &Filenames) {
+  void loadFiles(const std::vector<std::string> &Filenames) {
     reportStatus("Loading binaries...");
     LoadedFiles_.reserve(Filenames.size());
     llvm::for_each(Filenames,
-                   [this](StringRef Filename) { this->LoadFile(Filename); });
-    ValidateLoadedFiles_();
+                   [this](StringRef Filename) { this->loadFile(Filename); });
+    validateLoadedFiles_();
   }
 
 private:
-  void LoadFile(StringRef Filename) {
+  void loadFile(StringRef Filename) {
     OwningBinary<Binary> OBinary =
         unwrapOrError(createBinary(Filename), Filename);
     Binary &Binary = *OBinary.getBinary();
@@ -123,7 +123,7 @@ private:
     }
   }
 
-  void ValidateLoadedFiles_() {
+  void validateLoadedFiles_() {
     std::map<Triple::ArchType, const LoadedFile *> triple_map;
     llvm::for_each(LoadedFiles_, [&triple_map](const LoadedFile &LF) {
       triple_map[LF.ObjectFile->getArch()] = &LF;
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
   }
 
   Context Ctx;
-  Ctx.LoadFiles(InputFilenames);
+  Ctx.loadFiles(InputFilenames);
 
   reportStatus("Successfully started up");
 

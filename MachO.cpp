@@ -63,6 +63,7 @@ Expected<std::unique_ptr<MemoryBuffer>> MachO::Builder::build() const {
 
   std::unique_ptr<WritableMemoryBuffer> Result =
       WritableMemoryBuffer::getNewUninitMemBuffer(TotalSize);
+  memcpy(Result->getBufferStart(), &Header, sizeof(mach_header_64));
 
   return std::move(Result);
 }

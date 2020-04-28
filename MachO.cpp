@@ -63,14 +63,15 @@ MachO::Builder::buildHeader(uint32_t LoadCommandsSize) const {
 
 namespace {
 
-Error touchFile(const std::string &Filename) {
+Error createFile(const std::string &Filename, size_t Size) {
   using namespace sys::fs;
   Expected<file_t> FOrErr =
       openNativeFileForWrite(Filename, CD_CreateAlways, OF_None, 0755);
-  if (auto Err = FOrErr.takeError()) {
+  CheckErr(F);
+  if (auto Err = errorCodeToError(resize_file(F, Size))) {
     return Err;
   }
-  if (auto Err = errorCodeToError(closeFile(*FOrErr))) {
+  if (auto Err = errorCodeToError(closeFile(F))) {
     return Err;
   }
   return Error::success();
@@ -78,8 +79,7 @@ Error touchFile(const std::string &Filename) {
 
 } // namespace
 
-Expected<std::unique_ptr<MemoryBuffer>>
-MachO::Builder::build(std::string Filename) const {
+Error MachO::Builder::buildAndWrite(std::string Filename) const {
   uint32_t LoadCommandsSize = 0;
 
   auto HeaderOrErr = buildHeader(LoadCommandsSize);
@@ -87,19 +87,16 @@ MachO::Builder::build(std::string Filename) const {
 
   size_t TotalSize = sizeof(mach_header_64);
 
-  if (auto Err = touchFile(Filename)) {
-    return std::move(Err);
+  if (auto Err = createFile(Filename, TotalSize)) {
+    return Err;
   }
 
-  auto ResultOrErr =
+  auto BufferOrErr =
       errorOrToExpected(WriteThroughMemoryBuffer::getFile(Filename, TotalSize));
-  if (auto Err = ResultOrErr.takeError()) {
-    return std::move(Err);
-  }
-  std::unique_ptr<MemoryBuffer> Result(ResultOrErr->release());
-  memcpy((void *)Result->getBufferStart(), &Header, sizeof(mach_header_64));
+  CheckErr(Buffer);
+  memcpy((void *)Buffer->getBufferStart(), &Header, sizeof(mach_header_64));
 
-  return std::move(Result);
+  return Error::success();
 }
 
 } // end namespace ald

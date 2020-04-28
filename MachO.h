@@ -34,7 +34,7 @@ public:
       return *this;
     }
 
-    Expected<std::unique_ptr<MemoryBuffer>> build(std::string Filename) const;
+    Error buildAndWrite(std::string Filename) const;
 
   private:
     uint32_t buildHeaderFlags() const;

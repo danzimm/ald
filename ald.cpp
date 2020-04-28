@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Daniel Zimmerman
 
 #include "ald.h"
+#include "MachO.h"
 
 #include "llvm/Object/MachO.h"
 #include "llvm/Support/InitLLVM.h"
@@ -108,6 +109,8 @@ public:
     validateLoadedFiles_();
   }
 
+  const Triple &getTriple() const { return Triple_; }
+
 private:
   void loadFile(StringRef Filename) {
     OwningBinary<Binary> OBinary =
@@ -201,6 +204,14 @@ int main(int argc, char **argv) {
 
   reportStatus("Successfully started up, will write to '" + OutputFilename +
                "'");
+
+  if (auto Err = ald::MachO::Builder()
+                     .setTriple(Ctx.getTriple())
+                     .buildAndWrite(OutputFilename)) {
+    reportError(std::move(Err), OutputFilename);
+  }
+
+  reportStatus("Wrote mach header!");
 
   return EXIT_SUCCESS;
 }

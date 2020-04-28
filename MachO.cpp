@@ -8,9 +8,15 @@ namespace llvm {
 
 namespace ald {
 
-#define CheckErr(x)                                                            \
+#define CheckErrMove(x)                                                        \
   if (auto Err = x##OrErr.takeError()) {                                       \
     return std::move(Err);                                                     \
+  }                                                                            \
+  auto &x = *x##OrErr
+
+#define CheckErr(x)                                                            \
+  if (auto Err = x##OrErr.takeError()) {                                       \
+    return Err;                                                                \
   }                                                                            \
   auto &x = *x##OrErr
 
@@ -38,11 +44,11 @@ MachO::Builder::buildHeader(uint32_t LoadCommandsSize) const {
   hdr.magic = MH_MAGIC_64;
 
   auto CPUTypeOrErr = getCPUType(Triple_);
-  CheckErr(CPUType);
+  CheckErrMove(CPUType);
   hdr.cputype = CPUType;
 
   auto CPUSubTypeOrErr = getCPUSubType(Triple_);
-  CheckErr(CPUSubType);
+  CheckErrMove(CPUSubType);
   hdr.cpusubtype = CPUSubType;
 
   hdr.filetype = MH_EXECUTE;

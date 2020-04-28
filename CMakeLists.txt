@@ -3,9 +3,9 @@ set(LLVM_LINK_COMPONENTS
   Support
   )
 
-add_llvm_tool(zld
-  zld.cpp
+add_llvm_tool(ald
+  ald.cpp
   MachO.cpp
   )
 
-target_compile_options(zld PUBLIC "-Wno-c99-extensions")
+target_compile_options(ald PUBLIC "-Wno-c99-extensions")

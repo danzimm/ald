@@ -11,7 +11,7 @@ using namespace llvm::MachO;
 
 namespace llvm {
 
-namespace zld {
+namespace ald {
 
 class LoadCommand {
 public:
@@ -41,6 +41,6 @@ public:
   };
 };
 
-} // end namespace zld
+} // end namespace ald
 
 } // end namespace llvm

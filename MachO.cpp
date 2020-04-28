@@ -4,7 +4,7 @@
 
 namespace llvm {
 
-namespace zld {
+namespace ald {
 
 #define CheckErr(x)                                                            \
   if (auto Err = x##OrErr.takeError()) {                                       \
@@ -68,6 +68,6 @@ Expected<std::unique_ptr<MemoryBuffer>> MachO::Builder::build() const {
   return std::move(Result);
 }
 
-} // end namespace zld
+} // end namespace ald
 
 } // end namespace llvm

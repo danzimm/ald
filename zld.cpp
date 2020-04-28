@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Daniel Zimmerman
 
-#include "zld.h"
+#include "ald.h"
 
 #include "llvm/Object/MachO.h"
 #include "llvm/Support/InitLLVM.h"
@@ -10,22 +10,22 @@
 
 using namespace llvm;
 using namespace llvm::object;
-using namespace llvm::zld;
+using namespace llvm::ald;
 
-static cl::OptionCategory ZldCat("zld Options");
+static cl::OptionCategory AldCat("ald Options");
 
-cl::opt<bool> zld::Dummy("dummy", cl::desc("Dummy arg to sanity check cli"),
-                         cl::cat(ZldCat));
+cl::opt<bool> ald::Dummy("dummy", cl::desc("Dummy arg to sanity check cli"),
+                         cl::cat(AldCat));
 
 static cl::opt<std::string> OutputFilename("out", cl::desc("[output filename]"),
-                                           cl::cat(ZldCat));
+                                           cl::cat(AldCat));
 static cl::alias OutputFilenameShort("o", cl::desc("Alias for --out"),
                                      cl::NotHidden, cl::Grouping,
                                      cl::aliasopt(OutputFilename));
 
 static cl::list<std::string> InputFilenames(cl::Positional,
                                             cl::desc("<input object files>"),
-                                            cl::ZeroOrMore, cl::cat(ZldCat));
+                                            cl::ZeroOrMore, cl::cat(AldCat));
 
 static cl::extrahelp
     HelpResponse("\nPass @FILE as argument to read options from FILE.\n");
@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
   InitLLVM X(argc, argv);
 
 #if 0
-  const cl::OptionCategory *OptionFilters[] = {&ZldCat};
+  const cl::OptionCategory *OptionFilters[] = {&AldCat};
   cl::HideUnrelatedOptions(OptionFilters);
 #endif
 

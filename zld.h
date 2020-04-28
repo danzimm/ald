@@ -6,10 +6,10 @@
 
 namespace llvm {
 
-namespace zld {
+namespace ald {
 
 extern cl::opt<bool> Dummy;
 
-} // end namespace zld
+} // end namespace ald
 
 } // end namespace llvm

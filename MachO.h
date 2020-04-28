@@ -30,7 +30,7 @@ public:
       LoadCommands_.push_back(std::move(LC));
     }
 
-    Expected<std::unique_ptr<MemoryBuffer>> build() const;
+    Expected<std::unique_ptr<MemoryBuffer>> build(std::string Filename) const;
 
   private:
     uint32_t buildHeaderFlags() const;

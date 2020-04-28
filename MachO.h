@@ -23,11 +23,15 @@ public:
 class MachO {
 public:
   class Builder {
+  public:
+    Builder &setTriple(const Triple &T) {
+      Triple_ = T;
+      return *this;
+    }
 
-    void setTriple(const Triple &T) { Triple_ = T; }
-
-    void addLoadCommand(std::unique_ptr<LoadCommand> LC) {
+    Builder &addLoadCommand(std::unique_ptr<LoadCommand> LC) {
       LoadCommands_.push_back(std::move(LC));
+      return *this;
     }
 
     Expected<std::unique_ptr<MemoryBuffer>> build(std::string Filename) const;

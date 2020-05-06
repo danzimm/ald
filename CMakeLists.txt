@@ -5,7 +5,8 @@ set(LLVM_LINK_COMPONENTS
 
 add_llvm_tool(ald
   ald.cpp
-  Macho/Builder.cpp
+  MachO/Builder.cpp
+  MachO/File.cpp
   )
 
 target_compile_options(ald PUBLIC "-Wno-c99-extensions")

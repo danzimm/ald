@@ -2,7 +2,6 @@
 
 #include "MachO/Builder.h"
 
-//#include "llvm/ObjectYAML/yaml2obj.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 

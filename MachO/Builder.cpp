@@ -1,12 +1,20 @@
 // Copyright (c) 2020 Daniel Zimmerman
 
-#include "MachO.h"
+#include "MachO/Builder.h"
 
+//#include "llvm/ObjectYAML/yaml2obj.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBuffer.h"
+
+using namespace llvm::MachO;
 
 namespace llvm {
 
 namespace ald {
+
+namespace MachO {
+
+namespace Builder {
 
 #define CheckErrMove(x)                                                        \
   if (auto Err = x##OrErr.takeError()) {                                       \
@@ -20,7 +28,7 @@ namespace ald {
   }                                                                            \
   auto &x = *x##OrErr
 
-uint32_t MachO::Builder::buildHeaderFlags() const {
+uint32_t File::buildHeaderFlags() const {
   uint32_t result = MH_NOUNDEFS | MH_DYLDLINK | MH_TWOLEVEL | MH_PIE;
 
 #if 0
@@ -38,8 +46,7 @@ uint32_t MachO::Builder::buildHeaderFlags() const {
   return result;
 }
 
-Expected<mach_header_64>
-MachO::Builder::buildHeader(uint32_t LoadCommandsSize) const {
+Expected<mach_header_64> File::buildHeader(uint32_t LoadCommandsSize) const {
   mach_header_64 hdr;
   hdr.magic = MH_MAGIC_64;
 
@@ -79,7 +86,7 @@ Error createFile(const std::string &Filename, size_t Size) {
 
 } // namespace
 
-Error MachO::Builder::buildAndWrite(std::string Filename) const {
+Error File::buildAndWrite(std::string Filename) const {
   uint32_t LoadCommandsSize = 0;
 
   auto HeaderOrErr = buildHeader(LoadCommandsSize);
@@ -98,6 +105,10 @@ Error MachO::Builder::buildAndWrite(std::string Filename) const {
 
   return Error::success();
 }
+
+} // end namespace Builder
+
+} // end namespace MachO
 
 } // end namespace ald
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Daniel Zimmerman
 
 #include "ald.h"
-#include "MachO.h"
+#include "MachO/Builder.h"
 
 #include "llvm/Object/MachO.h"
 #include "llvm/Support/InitLLVM.h"
@@ -205,9 +205,8 @@ int main(int argc, char **argv) {
   reportStatus("Successfully started up, will write to '" + OutputFilename +
                "'");
 
-  if (auto Err = ald::MachO::Builder()
-                     .setTriple(Ctx.getTriple())
-                     .buildAndWrite(OutputFilename)) {
+  ald::MachO::Builder::File FB;
+  if (auto Err = FB.setTriple(Ctx.getTriple()).buildAndWrite(OutputFilename)) {
     reportError(std::move(Err), OutputFilename);
   }
 

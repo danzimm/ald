@@ -2,6 +2,7 @@
 
 #include "ald.h"
 #include "MachO/Builder.h"
+#include "MachO/File.h"
 
 #include "llvm/Object/MachO.h"
 #include "llvm/Support/InitLLVM.h"
@@ -51,11 +52,6 @@ void printToolError(Twine Message) {
 
 LLVM_ATTRIBUTE_NORETURN void reportToolError(Twine Message) {
   printToolError(Message);
-  exit(1);
-}
-
-LLVM_ATTRIBUTE_NORETURN void reportError(StringRef File, Twine Message) {
-  WithColor::error(errs(), ToolName) << "'" << File << "': " << Message << "\n";
   exit(1);
 }
 
@@ -112,40 +108,32 @@ public:
   const Triple &getTriple() const { return Triple_; }
 
 private:
-  void loadFile(StringRef Filename) {
-    OwningBinary<Binary> OBinary =
-        unwrapOrError(createBinary(Filename), Filename);
-    Binary &Binary = *OBinary.getBinary();
-    if (ObjectFile *O = dyn_cast<ObjectFile>(&Binary)) {
-      if (MachOObjectFile *MachO = dyn_cast<MachOObjectFile>(O)) {
-        LoadedFiles_.push_back(LoadedFile{
-            .Name = Filename,
-            .Bin = std::move(OBinary),
-            .ObjectFile = MachO,
-        });
-        reportStatus("  Loaded " + Filename);
-      } else {
-        reportError(Filename, "not a mach-o object file");
-      }
-    } else {
-      reportError(Filename, "not an object file");
-    }
+  void loadFile(StringRef Path) {
+    std::unique_ptr<MemoryBuffer> MB =
+        unwrapOrError(errorOrToExpected(MemoryBuffer::getFile(Path)), Path);
+    std::unique_ptr<ald::MachO::File> F =
+        unwrapOrError(ald::MachO::File::create(std::move(MB)), Path);
+
+    LoadedFiles_.push_back(LoadedFile{
+      .Path = Path,
+      .File = std::move(F),
+    });
   }
 
   void validateLoadedFiles_() {
     std::map<Triple::ArchType, const LoadedFile *> triple_map;
     llvm::for_each(LoadedFiles_, [&triple_map](const LoadedFile &LF) {
-      triple_map[LF.ObjectFile->getArch()] = &LF;
+      triple_map[LF.File->getTriple().getArch()] = &LF;
     });
     if (triple_map.size() != 1) {
       printToolError("Unsure which architecture to link:");
       for (auto &mapping : triple_map) {
         printToolError("  " + Triple::getArchTypePrefix(mapping.first).str() +
-                       " (" + mapping.second->Name + ")");
+                       " (" + mapping.second->Path + ")");
       }
       reportToolError("Please ensure all inputs have the same architecture");
     }
-    Triple_ = triple_map.begin()->second->ObjectFile->makeTriple();
+    Triple_ = triple_map.begin()->second->File->getTriple();
 
     switch (Triple_.getArch()) {
     case Triple::ArchType::aarch64:
@@ -160,9 +148,8 @@ private:
   }
 
   struct LoadedFile {
-    StringRef Name;
-    OwningBinary<Binary> Bin;
-    MachOObjectFile *ObjectFile;
+    StringRef Path;
+    std::unique_ptr<ald::MachO::File> File;
   };
 
   std::vector<LoadedFile> LoadedFiles_;

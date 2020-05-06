@@ -13,7 +13,8 @@ namespace MachO {
 
 class File {
 public:
-  Expected<std::unique_ptr<File>> create(std::unique_ptr<MemoryBuffer> MB);
+  static Expected<std::unique_ptr<File>>
+  create(std::unique_ptr<MemoryBuffer> MB);
 
   const ::llvm::MachO::mach_header_64 *getHeader() const { return Hdr_; }
 

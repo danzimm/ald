@@ -201,12 +201,15 @@ int main(int argc, char **argv) {
 
   class Printer: public LCVisitor {
    public:
-    void visitHeader(StringRef Path, const mach_header_64 *) override {
-      WithColor::note(outs(), ToolName) << "Parsing '" << Path << "':\n";
+    void visitHeader(const ald::MachO::File& F, const mach_header_64 *) override {
+      WithColor::remark(outs(), ToolName) << F.getPath()
+                                          << ": Parsing load commands...\n";
     }
 
-    void visitCmd(const load_command* LC) override {
-      WithColor::note(outs(), ToolName) << "  - " << ald::MachO::getLoadCommandName(LC->cmd) << '\n';
+    void visitCmd(const ald::MachO::File& F, const load_command* LC) override {
+      WithColor::remark(outs(), ToolName)
+          << F.getPath() << ":  " << ald::MachO::getLoadCommandName(LC->cmd)
+          << '\n';
     }
   };
 

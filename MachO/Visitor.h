@@ -18,14 +18,15 @@ public:
   void visit(const File &F);
 
 protected:
-  virtual void visitHeader(StringRef, const ::llvm::MachO::mach_header_64 *) {}
+  virtual void visitHeader(const File &,
+                           const ::llvm::MachO::mach_header_64 *) {}
 
   // If no implementation of Visit##LCName is found then VisitCmd will be
   // called.
-  virtual void visitCmd(const ::llvm::MachO::load_command *) {}
+  virtual void visitCmd(const File &, const ::llvm::MachO::load_command *) {}
 
 #define HANDLE_LOAD_COMMAND(LCName, LCValue, LCStruct)                         \
-  virtual void visit##LCName(const ::llvm::MachO::LCStruct *Cmd);
+  virtual void visit##LCName(const File &, const ::llvm::MachO::LCStruct *Cmd);
 
 #include "llvm/BinaryFormat/MachO.def"
 

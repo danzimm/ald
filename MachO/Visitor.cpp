@@ -15,7 +15,7 @@ namespace MachO {
 void LCVisitor::visit(const File &F) {
   auto Hdr = F.getHeader();
 
-  visitHeader(F.getPath(), Hdr);
+  visitHeader(F, Hdr);
 
   auto LCStart = (const load_command *)((const uint8_t *)Hdr + sizeof(*Hdr));
   auto LCEnd =
@@ -28,7 +28,7 @@ void LCVisitor::visit(const File &F) {
 
 #define HANDLE_LOAD_COMMAND(LCName, LCValue, LCStruct)                         \
   case LCValue:                                                                \
-    visit##LCName((const LCStruct *)LCIter);                                   \
+    visit##LCName(F, (const LCStruct *)LCIter);                                \
     break;
 
 #include "llvm/BinaryFormat/MachO.def"
@@ -39,8 +39,8 @@ void LCVisitor::visit(const File &F) {
 }
 
 #define HANDLE_LOAD_COMMAND(LCName, LCValue, LCStruct)                         \
-  void LCVisitor::visit##LCName(const LCStruct *Cmd) {                         \
-    visitCmd((const load_command *)Cmd);                                       \
+  void LCVisitor::visit##LCName(const File &F, const LCStruct *Cmd) {          \
+    visitCmd(F, (const load_command *)Cmd);                                    \
   }
 
 #include "llvm/BinaryFormat/MachO.def"

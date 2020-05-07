@@ -98,6 +98,10 @@ public:
   Context() {}
 
   void loadFiles(const std::vector<std::string> &Filenames) {
+    if (LoadedFiles_.size() != 0) {
+      return;
+    }
+
     reportStatus("Loading binaries...");
     LoadedFiles_.reserve(Filenames.size());
     llvm::for_each(Filenames,

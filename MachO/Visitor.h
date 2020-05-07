@@ -26,7 +26,7 @@ protected:
   virtual void visitCmd(const File &, const ::llvm::MachO::load_command *) {}
 
 #define HANDLE_LOAD_COMMAND(LCName, LCValue, LCStruct)                         \
-  virtual void visit##LCName(const File &, const ::llvm::MachO::LCStruct *Cmd);
+  virtual void visit_##LCName(const File &, const ::llvm::MachO::LCStruct *Cmd);
 
 #include "llvm/BinaryFormat/MachO.def"
 

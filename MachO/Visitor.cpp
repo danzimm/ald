@@ -28,7 +28,7 @@ void LCVisitor::visit(const File &F) {
 
 #define HANDLE_LOAD_COMMAND(LCName, LCValue, LCStruct)                         \
   case LCValue:                                                                \
-    visit##LCName(F, (const LCStruct *)LCIter);                                \
+    visit_##LCName(F, (const LCStruct *)LCIter);                                \
     break;
 
 #include "llvm/BinaryFormat/MachO.def"
@@ -39,7 +39,7 @@ void LCVisitor::visit(const File &F) {
 }
 
 #define HANDLE_LOAD_COMMAND(LCName, LCValue, LCStruct)                         \
-  void LCVisitor::visit##LCName(const File &F, const LCStruct *Cmd) {          \
+  void LCVisitor::visit_##LCName(const File &F, const LCStruct *Cmd) {          \
     visitCmd(F, (const load_command *)Cmd);                                    \
   }
 

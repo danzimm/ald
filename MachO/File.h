@@ -48,6 +48,8 @@ private:
   friend class LCVisitor;
 };
 
+const char *getLoadCommandName(uint32_t LCValue);
+
 } // end namespace MachO
 
 } // end namespace ald

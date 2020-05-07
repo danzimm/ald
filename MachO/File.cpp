@@ -51,6 +51,20 @@ Expected<std::unique_ptr<File>> File::create(std::unique_ptr<MemoryBuffer> MB) {
   return std::unique_ptr<File>(new File(std::move(MB)));
 }
 
+const char *getLoadCommandName(uint32_t LCValue) {
+  switch (LCValue) {
+#define HANDLE_LOAD_COMMAND(LCName, LCValue, LCStruct)                         \
+  case LCValue:                                                                \
+    return #LCName;
+
+#include "llvm/BinaryFormat/MachO.def"
+
+#undef HANDLE_LOAD_COMMAND
+  default:
+    return "UNKNOWN_CMD";
+  }
+}
+
 } // end namespace MachO
 
 } // end namespace ald

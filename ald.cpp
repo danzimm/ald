@@ -1,8 +1,10 @@
 // Copyright (c) 2020 Daniel Zimmerman
 
 #include "ald.h"
+
 #include "MachO/Builder.h"
 #include "MachO/File.h"
+#include "MachO/Visitor.h"
 
 #include "llvm/Object/MachO.h"
 #include "llvm/Support/InitLLVM.h"
@@ -13,6 +15,8 @@
 using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::ald;
+using namespace llvm::MachO;
+using llvm::ald::MachO::LCVisitor;
 
 static cl::OptionCategory AldCat("ald Options");
 
@@ -111,6 +115,13 @@ public:
 
   const Triple &getTriple() const { return Triple_; }
 
+  void visitFiles(LCVisitor &Visitor) {
+    llvm::for_each(LoadedFiles_,
+                   [&Visitor](const LoadedFile &LF) {
+      Visitor.visit(*LF.File);
+    });
+  }
+
 private:
   void loadFile(StringRef Path) {
     std::unique_ptr<MemoryBuffer> MB =
@@ -192,6 +203,16 @@ int main(int argc, char **argv) {
 
   Context Ctx;
   Ctx.loadFiles(InputFilenames);
+
+  class Printer: public LCVisitor {
+   public:
+    void visitCmd(const load_command* LC) override {
+      WithColor::note(outs(), ToolName) << "Parsed " << ald::MachO::getLoadCommandName(LC->cmd) << '\n';
+    }
+  };
+
+  Printer P;
+  Ctx.visitFiles(P);
 
   reportStatus("Successfully started up, will write to '" + OutputFilename +
                "'");

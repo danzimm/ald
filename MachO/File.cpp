@@ -43,12 +43,17 @@ private:
 };
 char MachOLoadError::ID;
 
-Expected<std::unique_ptr<File>> File::create(std::unique_ptr<MemoryBuffer> MB) {
-  auto *H = (const mach_header_64 *)MB->getBufferStart();
+Expected<std::unique_ptr<File>> File::read(StringRef Path) {
+  auto MBOrErr = errorOrToExpected(MemoryBuffer::getFile(Path));
+  if (auto Err = MBOrErr.takeError()) {
+    return std::move(Err);
+  }
+  auto MB = std::move(*MBOrErr);
+  auto H = (const mach_header_64 *)MB->getBufferStart();
   if (H->magic != MH_MAGIC_64) {
     return make_error<MachOLoadError>(MachOLoadError::BAD_MAGIC, H->magic);
   }
-  return std::unique_ptr<File>(new File(std::move(MB)));
+  return std::unique_ptr<File>(new File(std::move(MB), Path));
 }
 
 const char *getLoadCommandName(uint32_t LCValue) {

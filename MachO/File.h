@@ -13,8 +13,7 @@ namespace MachO {
 
 class File {
 public:
-  static Expected<std::unique_ptr<File>>
-  create(std::unique_ptr<MemoryBuffer> MB);
+  static Expected<std::unique_ptr<File>> read(StringRef Path);
 
   const ::llvm::MachO::mach_header_64 *getHeader() const { return Hdr_; }
 
@@ -35,13 +34,14 @@ public:
   const char *getFileEnd() const { return getBuffer().getBufferEnd(); }
 
 private:
-  File(std::unique_ptr<MemoryBuffer> MB)
-      : MB_(std::move(MB)),
+  File(std::unique_ptr<MemoryBuffer> MB, StringRef Path)
+      : MB_(std::move(MB)), Path_(Path),
         Hdr_((const ::llvm::MachO::mach_header_64 *)MB_->getBufferStart()),
         Triple_(object::MachOObjectFile::getArchTriple(Hdr_->cputype,
                                                        Hdr_->cpusubtype)) {}
 
   std::unique_ptr<MemoryBuffer> MB_;
+  std::string Path_;
   const ::llvm::MachO::mach_header_64 *Hdr_;
   Triple Triple_;
 

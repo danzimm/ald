@@ -124,14 +124,9 @@ public:
 
 private:
   void loadFile(StringRef Path) {
-    std::unique_ptr<MemoryBuffer> MB =
-        unwrapOrError(errorOrToExpected(MemoryBuffer::getFile(Path)), Path);
-    std::unique_ptr<ald::MachO::File> F =
-        unwrapOrError(ald::MachO::File::create(std::move(MB)), Path);
-
     LoadedFiles_.push_back(LoadedFile{
       .Path = Path,
-      .File = std::move(F),
+      .File = unwrapOrError(ald::MachO::File::read(Path), Path),
     });
   }
 

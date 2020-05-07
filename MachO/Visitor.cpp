@@ -15,7 +15,7 @@ namespace MachO {
 void LCVisitor::visit(const File &F) {
   auto Hdr = F.getHeader();
 
-  visitHeader(Hdr);
+  visitHeader(F.getPath(), Hdr);
 
   auto LCStart = (const load_command *)((const uint8_t *)Hdr + sizeof(*Hdr));
   auto LCEnd =

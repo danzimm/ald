@@ -201,8 +201,12 @@ int main(int argc, char **argv) {
 
   class Printer: public LCVisitor {
    public:
+    void visitHeader(StringRef Path, const mach_header_64 *) override {
+      WithColor::note(outs(), ToolName) << "Parsing '" << Path << "':\n";
+    }
+
     void visitCmd(const load_command* LC) override {
-      WithColor::note(outs(), ToolName) << "Parsed " << ald::MachO::getLoadCommandName(LC->cmd) << '\n';
+      WithColor::note(outs(), ToolName) << "  - " << ald::MachO::getLoadCommandName(LC->cmd) << '\n';
     }
   };
 

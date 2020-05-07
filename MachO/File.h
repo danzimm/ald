@@ -33,6 +33,8 @@ public:
 
   const char *getFileEnd() const { return getBuffer().getBufferEnd(); }
 
+  StringRef getPath() const { return Path_; }
+
 private:
   File(std::unique_ptr<MemoryBuffer> MB, StringRef Path)
       : MB_(std::move(MB)), Path_(Path),

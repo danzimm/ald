@@ -18,7 +18,7 @@ public:
   void visit(const File &F);
 
 protected:
-  virtual void visitHeader(const ::llvm::MachO::mach_header_64 *) {}
+  virtual void visitHeader(StringRef, const ::llvm::MachO::mach_header_64 *) {}
 
   // If no implementation of Visit##LCName is found then VisitCmd will be
   // called.

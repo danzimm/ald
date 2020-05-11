@@ -8,3 +8,4 @@ function(add_ald_unittest test_dirname)
 endfunction()
 
 add_subdirectory(lazy)
+add_subdirectory(uniquefunc)

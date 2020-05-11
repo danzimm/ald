@@ -47,6 +47,17 @@ void LCVisitor::visit(const File &F) {
 
 #undef HANDLE_LOAD_COMMAND
 
+void LCSegVisitor::visit_LC_SEGMENT_64(const File &F,
+                                       const segment_command_64 *Cmd) {
+  visitSegment(F, Cmd);
+  auto sect_begin = (const section_64 *)((const uint8_t *)Cmd + sizeof(*Cmd));
+  auto sect_end = (const section_64 *)((const uint8_t *)sect_begin +
+                                       sizeof(*sect_begin) * Cmd->nsects);
+  for (auto iter = sect_begin; iter < sect_end; iter += 1) {
+    visitSection(F, iter);
+  }
+}
+
 } // end namespace MachO
 
 } // end namespace ald

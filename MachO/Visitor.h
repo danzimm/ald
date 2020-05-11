@@ -3,6 +3,8 @@
 #include "llvm/BinaryFormat/MachO.h"
 #include "llvm/Support/MemoryBuffer.h"
 
+#include "ADT/Lazy.h"
+
 namespace llvm {
 
 namespace ald {
@@ -31,6 +33,16 @@ protected:
 #include "llvm/BinaryFormat/MachO.def"
 
 #undef HANDLE_LOAD_COMMAND
+};
+
+class LCSegVisitor : public LCVisitor {
+protected:
+  void visit_LC_SEGMENT_64(const File &F,
+                           const llvm::MachO::segment_command_64 *Cmd) override;
+
+  virtual void visitSegment(const File &F,
+                            const llvm::MachO::segment_command_64 *) {}
+  virtual void visitSection(const File &F, const llvm::MachO::section_64 *) {}
 };
 
 } // end namespace MachO

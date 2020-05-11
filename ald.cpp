@@ -16,6 +16,7 @@ using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::ald;
 using namespace llvm::MachO;
+using llvm::ald::MachO::LCSegVisitor;
 using llvm::ald::MachO::LCVisitor;
 
 static cl::OptionCategory AldCat("ald Options");
@@ -116,8 +117,7 @@ public:
   const Triple &getTriple() const { return Triple_; }
 
   void visitFiles(LCVisitor &Visitor) {
-    llvm::for_each(LoadedFiles_,
-                   [&Visitor](const LoadedFile &LF) {
+    llvm::for_each(LoadedFiles_, [&Visitor](const LoadedFile &LF) {
       Visitor.visit(*LF.File);
     });
   }
@@ -125,8 +125,8 @@ public:
 private:
   void loadFile(StringRef Path) {
     LoadedFiles_.push_back(LoadedFile{
-      .Path = Path,
-      .File = unwrapOrError(ald::MachO::File::read(Path), Path),
+        .Path = Path,
+        .File = unwrapOrError(ald::MachO::File::read(Path), Path),
     });
   }
 
@@ -199,17 +199,31 @@ int main(int argc, char **argv) {
   Context Ctx;
   Ctx.loadFiles(InputFilenames);
 
-  class Printer: public LCVisitor {
-   public:
-    void visitHeader(const ald::MachO::File& F, const mach_header_64 *) override {
-      WithColor::remark(outs(), ToolName) << F.getPath()
-                                          << ": Parsing load commands...\n";
+  class Printer : public LCSegVisitor {
+  public:
+    void visitHeader(const ald::MachO::File &F,
+                     const mach_header_64 *) override {
+      WithColor::remark(outs(), ToolName)
+          << F.getPath() << ": Parsing load commands...\n";
     }
 
-    void visitCmd(const ald::MachO::File& F, const load_command* LC) override {
+    void visitCmd(const ald::MachO::File &F, const load_command *LC) override {
       WithColor::remark(outs(), ToolName)
           << F.getPath() << ":  " << ald::MachO::getLoadCommandName(LC->cmd)
           << '\n';
+    }
+
+    void visitSegment(const ald::MachO::File &F,
+                      const segment_command_64 *Cmd) override {
+      WithColor::remark(outs(), ToolName)
+          << F.getPath() << ":  Segment: '" << Cmd->segname << "'\n";
+    }
+
+    void visitSection(const ald::MachO::File &F,
+                      const section_64 *Sect) override {
+      WithColor::remark(outs(), ToolName)
+          << F.getPath() << ":    '" << Sect->sectname << ',' << Sect->segname
+          << "'\n";
     }
   };
 

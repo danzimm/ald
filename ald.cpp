@@ -219,11 +219,15 @@ int main(int argc, char **argv) {
           << F.getPath() << ":  Segment: '" << Cmd->segname << "'\n";
     }
 
-    void visitSection(const ald::MachO::File &F,
+    void visitSection(const ald::MachO::File &F, const segment_command_64 *Cmd,
                       const section_64 *Sect) override {
-      WithColor::remark(outs(), ToolName)
-          << F.getPath() << ":    '" << Sect->sectname << ',' << Sect->segname
-          << "'\n";
+      auto &S = WithColor::remark(outs(), ToolName)
+                << F.getPath() << ":    '" << Sect->sectname << ','
+                << Sect->segname << "'";
+      if (Cmd->segname[0] != '\0') {
+        S << " (" << Cmd->segname << ")";
+      }
+      S << '\n';
     }
   };
 

@@ -54,7 +54,7 @@ void LCSegVisitor::visit_LC_SEGMENT_64(const File &F,
   auto sect_end = (const section_64 *)((const uint8_t *)sect_begin +
                                        sizeof(*sect_begin) * Cmd->nsects);
   for (auto iter = sect_begin; iter < sect_end; iter += 1) {
-    visitSection(F, iter);
+    visitSection(F, Cmd, iter);
   }
 }
 

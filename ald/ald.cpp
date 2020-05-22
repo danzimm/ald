@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Daniel Zimmerman
 
-#include "ald.h"
+#include "ald/ald.h"
 
 #include "MachO/Builder.h"
 #include "MachO/File.h"

@@ -7,5 +7,6 @@ function(add_ald_unittest test_dirname)
   include_directories(${ALD_MAIN_SRC_DIR})
 endfunction()
 
+add_subdirectory(filesearcher)
 add_subdirectory(lazy)
 add_subdirectory(uniquefunc)

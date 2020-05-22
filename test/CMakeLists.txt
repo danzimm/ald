@@ -1,4 +1,4 @@
-set(ALD_TEST_DEPENDS AldUnitTests)
+set(ALD_TEST_DEPENDS AldUnitTests LLVMAldy)
 
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/Unit/lit.site.cfg.py.in

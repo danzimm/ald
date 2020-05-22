@@ -6,6 +6,7 @@ add_llvm_component_library(LLVMAldy
   MachO/Builder.cpp
   MachO/File.cpp
   MachO/Visitor.cpp
+  Util/FileSearcher.cpp
   )
 
 target_compile_options(LLVMAldy PUBLIC "-Wno-c99-extensions")

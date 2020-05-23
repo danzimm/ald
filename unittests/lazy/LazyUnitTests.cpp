@@ -23,7 +23,6 @@ TEST(LazyTest, TestLazy) {
   ASSERT_EQ(LM.get(), 35u);
 }
 
-#if 0
 TEST(LazyTest, EagerMoveOnlySupported) {
   auto P = std::make_unique<uint32_t>(5);
   auto RP = P.get();
@@ -34,11 +33,9 @@ TEST(LazyTest, EagerMoveOnlySupported) {
   ASSERT_EQ(TP.get(), RP);
 
   Lazy<std::unique_ptr<uint32_t>> L2(std::move(TP));
-  auto LM = std::move(L2).map([](std::unique_ptr<uint32_t> &&TakenP) {
-    return std::move(TakenP);
-  });
+  auto LM = std::move(L2).map(
+      [](std::unique_ptr<uint32_t> &&TakenP) { return std::move(TakenP); });
 
   auto TTP = LM.take();
-  ASSERT_EQ(*(TTP.get()), RP);
+  ASSERT_EQ(TTP.get(), RP);
 }
-#endif

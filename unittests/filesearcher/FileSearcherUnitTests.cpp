@@ -124,7 +124,9 @@ struct AnyFile {
 };
 
 struct BasicName {
-  void operator()(StringRef, raw_ostream &) const {}
+  raw_ostream &operator()(StringRef Name, raw_ostream &FileBuilder) const {
+    return FileBuilder << Name;
+  }
 };
 
 TEST_F(FileSearcherTest, doesntFindEmpty) {
@@ -173,8 +175,8 @@ TEST_F(FileSearcherTest, extraPathsOverrideDefaultPaths) {
 }
 
 struct TxtName {
-  void operator()(StringRef Name, raw_ostream &FileBuilder) const {
-    FileBuilder << Name << ".txt";
+  raw_ostream &operator()(StringRef Name, raw_ostream &FileBuilder) const {
+    return FileBuilder << Name << ".txt";
   }
 };
 
@@ -189,8 +191,8 @@ TEST_F(FileSearcherTest, findsFileWithSuffix) {
 }
 
 struct LibPrefixName {
-  void operator()(StringRef File, raw_ostream &PathBuilder) const {
-    PathBuilder << "lib" << File;
+  raw_ostream &operator()(StringRef Name, raw_ostream &FileBuilder) const {
+    return FileBuilder << "lib" << Name;
   }
 };
 

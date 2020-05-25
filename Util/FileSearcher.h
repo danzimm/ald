@@ -21,9 +21,6 @@ namespace details {
 
 class FileSearcherImpl {
 public:
-  explicit FileSearcherImpl(const ConcatPathList &DefaultPaths = {})
-      : DefaultPaths_(processPaths(DefaultPaths)) {}
-
   virtual ~FileSearcherImpl() {}
 
   /// Adds a new user defined \c Path to the list of extra search directories.
@@ -40,6 +37,9 @@ public:
   }
 
 protected:
+  explicit FileSearcherImpl(const ConcatPathList &DefaultPaths = {})
+      : DefaultPaths_(processPaths(DefaultPaths)) {}
+
   Expected<Path> searchInternal(StringRef File) const;
 
   /// Search for \c File in \c Dir.
@@ -93,7 +93,7 @@ protected:
 /// \param NamingScheme A class used to map an incoming query to an actual file
 ///                     name
 /// \code{c++}
-/// Path operator()(StringRef File, raw_ostream&) const;
+/// raw_ostream &operator()(StringRef File, raw_ostream&) const;
 /// \endcode
 template <typename Validator, typename NamingScheme>
 class FileSearcher : public details::FileSearcherImpl {
@@ -103,6 +103,12 @@ public:
   ///                     searching for a file.
   explicit FileSearcher(const ConcatPathList &DefaultPaths = {})
       : FileSearcherImpl(DefaultPaths) {}
+
+  FileSearcher(FileSearcher &&) = default;
+  FileSearcher &operator=(FileSearcher &&) = default;
+
+  FileSearcher(const FileSearcher &) = delete;
+  FileSearcher &operator=(const FileSearcher &) = delete;
 
   /// Searches for \c NamingScheme(File) within the extra
   /// search directories added via FileSearcher::addDirectory and then in the
@@ -117,11 +123,8 @@ public:
   Expected<Path> search(StringRef File) const final {
     std::string Filename;
     raw_string_ostream OS(Filename);
-    NamingScheme()(File, OS);
-    if (OS.str().size() == 0) {
-      OS << File;
-    }
-    return searchInternal(OS.str());
+    return searchInternal(
+        ((raw_string_ostream &)NamingScheme()(File, OS)).str());
   }
 
 private:

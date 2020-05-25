@@ -6,6 +6,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
 
@@ -35,12 +36,11 @@ public:
   PathList getAllPaths() const;
 
   virtual Expected<Path> search(StringRef File) const {
-    return searchInternal(File, "", "");
+    return searchInternal(File);
   }
 
 protected:
-  Expected<Path> searchInternal(StringRef File, StringRef Prefix,
-                                StringRef Suffix) const;
+  Expected<Path> searchInternal(StringRef File) const;
 
   /// Search for \c File in \c Dir.
   /// \param File The full name of the File to search for.
@@ -84,16 +84,19 @@ protected:
 /// In essence this is a list of directories and its main API is to search
 /// for a file with a given name in those directories.
 ///
-/// \param FTD AKA FileTypeDescriptor; a class containing the following members:
+/// \param Validator A class used to validate a file before returning it from
+///                  the searcher.
 /// \code{c++}
-/// static const char *Suffix;
-/// static const char *Prefix;
-///
-/// static Error validate(file_t &FD);
+/// Error operator()(file_t &FD) const;
 /// \endcode
 ///
-/// See FileSearcher::search for more information about how \c FTD is used.
-template <typename FTD> class FileSearcher : public details::FileSearcherImpl {
+/// \param NamingScheme A class used to map an incoming query to an actual file
+///                     name
+/// \code{c++}
+/// Path operator()(StringRef File, raw_ostream&) const;
+/// \endcode
+template <typename Validator, typename NamingScheme>
+class FileSearcher : public details::FileSearcherImpl {
 public:
   /// Construct a new FileSearcher.
   /// \param DefaultPaths A list of directories to consult by default when
@@ -101,22 +104,28 @@ public:
   explicit FileSearcher(const ConcatPathList &DefaultPaths = {})
       : FileSearcherImpl(DefaultPaths) {}
 
-  /// Searches for \c ${FTD::Prefix}${File}.${FTD::Suffix} within the extra
+  /// Searches for \c NamingScheme(File) within the extra
   /// search directories added via FileSearcher::addDirectory and then in the
   /// default directories passed when this object was constructed.
   ///
-  /// After finding a file it is opened and passed to \c FTD::valid for
+  /// After finding a file it is opened and passed to \c Validator for
   /// validation. If no error is returned then the path to this file is
   /// returned.
   ///
   /// \param File The name of the file to search for.
   /// \return The full path of the found file or a file not found Error.
   Expected<Path> search(StringRef File) const final {
-    return searchInternal(File, FTD::Prefix, FTD::Suffix);
+    std::string Filename;
+    raw_string_ostream OS(Filename);
+    NamingScheme()(File, OS);
+    if (OS.str().size() == 0) {
+      OS << File;
+    }
+    return searchInternal(OS.str());
   }
 
 private:
-  bool validateFile(file_t &FD) const final { return !FTD::validate(FD); }
+  bool validateFile(file_t &FD) const final { return !Validator()(FD); }
 };
 
 } // end namespace ald

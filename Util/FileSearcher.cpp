@@ -53,19 +53,11 @@ PathList FileSearcherImpl::getAllPaths() const {
   return RV;
 }
 
-Expected<Path> FileSearcherImpl::searchInternal(StringRef File,
-                                                StringRef Prefix,
-                                                StringRef Suffix) const {
+Expected<Path> FileSearcherImpl::searchInternal(StringRef File) const {
   Path RV;
 
-  Path Filename;
-  Filename.reserve(File.size() + Prefix.size() + Suffix.size());
-  Filename += Prefix;
-  Filename += File;
-  Filename += Suffix;
-
   auto Visitor = [&](const Path &P) -> bool {
-    return searchForFileInDirectory(Filename, P, RV) && validatePath(RV);
+    return searchForFileInDirectory(File, P, RV) && validatePath(RV);
   };
 
   for (const Path &P : ExtraPaths_) {
@@ -80,7 +72,7 @@ Expected<Path> FileSearcherImpl::searchInternal(StringRef File,
     }
   }
 
-  return make_error<FileNotFoundInSearchPath>(Filename, getAllPaths());
+  return make_error<FileNotFoundInSearchPath>(File, getAllPaths());
 }
 
 bool FileSearcherImpl::searchForFileInDirectory(StringRef File, StringRef Dir,

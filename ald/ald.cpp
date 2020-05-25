@@ -19,20 +19,39 @@ using namespace llvm::MachO;
 using llvm::ald::MachO::LCSegVisitor;
 using llvm::ald::MachO::LCVisitor;
 
-static cl::OptionCategory AldCat("ald Options");
+cl::opt<bool> ald::Dummy("dummy", cl::desc("Dummy arg to sanity check cli"));
 
-cl::opt<bool> ald::Dummy("dummy", cl::desc("Dummy arg to sanity check cli"),
-                         cl::cat(AldCat));
-
-static cl::opt<std::string> OutputFilename("out", cl::desc("[output filename]"),
-                                           cl::cat(AldCat));
+static cl::opt<std::string>
+    OutputFilename("out", cl::desc("Specify the name of the resulting binary"));
 static cl::alias OutputFilenameShort("o", cl::desc("Alias for --out"),
                                      cl::NotHidden, cl::Grouping,
                                      cl::aliasopt(OutputFilename));
 
 static cl::list<std::string> InputFilenames(cl::Positional,
                                             cl::desc("<input object files>"),
-                                            cl::ZeroOrMore, cl::cat(AldCat));
+                                            cl::ZeroOrMore);
+
+static cl::list<std::string>
+    Libraries("l", cl::Prefix, cl::ZeroOrMore,
+              cl::desc("Specify which libraries to link against"));
+static cl::list<std::string> LibrarySearchPaths(
+    "L", cl::Prefix, cl::ZeroOrMore,
+    cl::desc(
+        "Specify additional directories in which to search for libraries"));
+
+static cl::list<std::string>
+    Frameworks("framework", cl::ZeroOrMore,
+               cl::desc("Specify which frameworks to link against"));
+static cl::list<std::string> FrameworkSearchPaths(
+    "F", cl::Prefix, cl::ZeroOrMore,
+    cl::desc(
+        "Specify additional directories in which to search for frameworks"));
+
+static cl::opt<bool> DontAddStandardSearchPaths(
+    "Z",
+    cl::desc(
+        "Don't search standard search paths by default (/usr/lib, "
+        "/usr/lib/local, /Library/Frameworks/, /System/Library/Frameworks/)"));
 
 static cl::extrahelp
     HelpResponse("\nPass @FILE as argument to read options from FILE.\n");
@@ -172,14 +191,9 @@ int main(int argc, char **argv) {
   using namespace llvm;
   InitLLVM X(argc, argv);
 
-#if 0
-  const cl::OptionCategory *OptionFilters[] = {&AldCat};
-  cl::HideUnrelatedOptions(OptionFilters);
-#endif
-
   cl::ParseCommandLineOptions(argc, argv, "novel mach-o linker\n", nullptr,
                               /*EnvVar=*/nullptr,
-                              /*LongOptionsUseDoubleDash=*/true);
+                              /*LongOptionsUseDoubleDash=*/false);
 
   // Defaults to a.out if no filenames specified.
   if (InputFilenames.empty()) {

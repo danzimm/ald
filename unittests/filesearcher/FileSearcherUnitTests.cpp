@@ -95,10 +95,12 @@ public:
     ASSERT_FALSE(bool(S->search(File)));
   }
 
-  template <typename FTD, typename... Ts> void makeSearcher(Ts... args) {
-    S = std::make_unique<FileSearcher<FTD>>(std::initializer_list<Twine>{
-        FS->base() + "/" + args...,
-    });
+  template <typename Validator, typename NamingScheme, typename... Ts>
+  void makeSearcher(Ts... args) {
+    S = std::make_unique<FileSearcher<Validator, NamingScheme>>(
+        std::initializer_list<Twine>{
+            FS->base() + "/" + args...,
+        });
   }
 
   void addDirectory(const char *Dir) {
@@ -117,22 +119,23 @@ protected:
   }
 };
 
-struct BasicFile {
-  static constexpr char const *const Suffix = "";
-  static constexpr char const *const Prefix = "";
+struct AnyFile {
+  Error operator()(file_t &) const { return Error::success(); }
+};
 
-  static Error validate(file_t &) { return Error::success(); }
+struct BasicName {
+  void operator()(StringRef, raw_ostream &) const {}
 };
 
 TEST_F(FileSearcherTest, doesntFindEmpty) {
-  makeSearcher<BasicFile>("");
+  makeSearcher<AnyFile, BasicName>("");
 
   assertDoesntFind("boo");
 }
 
 TEST_F(FileSearcherTest, findsSingleFile) {
   createPaths({"boo"});
-  makeSearcher<BasicFile>("");
+  makeSearcher<AnyFile, BasicName>("");
 
   assertFinds("boo", "boo");
   assertDoesntFind("boo2");
@@ -140,7 +143,7 @@ TEST_F(FileSearcherTest, findsSingleFile) {
 
 TEST_F(FileSearcherTest, findsFileInSecondDir) {
   createPaths({"first/hoo", "second/boo"});
-  makeSearcher<BasicFile>("first", "second");
+  makeSearcher<AnyFile, BasicName>("first", "second");
 
   assertFinds("boo", "second/boo");
   assertFinds("hoo", "first/hoo");
@@ -149,7 +152,7 @@ TEST_F(FileSearcherTest, findsFileInSecondDir) {
 
 TEST_F(FileSearcherTest, ignoresNonExistentDirectories) {
   createPaths({"first/foo", "third/hoo"});
-  makeSearcher<BasicFile>("first", "second", "third");
+  makeSearcher<AnyFile, BasicName>("first", "second", "third");
 
   assertFinds("foo", "first/foo");
   assertFinds("hoo", "third/hoo");
@@ -159,7 +162,7 @@ TEST_F(FileSearcherTest, ignoresNonExistentDirectories) {
 TEST_F(FileSearcherTest, extraPathsOverrideDefaultPaths) {
   createPaths({"first/foo", "first/goo", "second/bar", "important/foo",
                "important/baz"});
-  makeSearcher<BasicFile>("first", "second");
+  makeSearcher<AnyFile, BasicName>("first", "second");
   addDirectory("important");
 
   assertFinds("foo", "important/foo");
@@ -169,34 +172,32 @@ TEST_F(FileSearcherTest, extraPathsOverrideDefaultPaths) {
   assertDoesntFind("moo");
 }
 
-struct TextFile {
-  static constexpr const char *Suffix = ".txt";
-  static constexpr const char *Prefix = "";
-
-  static Error validate(file_t &) { return Error::success(); }
+struct TxtName {
+  void operator()(StringRef Name, raw_ostream &FileBuilder) const {
+    FileBuilder << Name << ".txt";
+  }
 };
 
 TEST_F(FileSearcherTest, findsFileWithSuffix) {
   createPaths({"first/boo", "second/boo.txt", "first/foo.txt", "second/foo",
                "third/foo.txt", "third/boo.txt"});
-  makeSearcher<TextFile>("first", "second", "third");
+  makeSearcher<AnyFile, TxtName>("first", "second", "third");
 
   assertFinds("boo", "second/boo.txt");
   assertFinds("foo", "first/foo.txt");
   assertDoesntFind("hoo2");
 }
 
-struct LibPrefixFile {
-  static constexpr const char *Suffix = "";
-  static constexpr const char *Prefix = "lib";
-
-  static Error validate(file_t &) { return Error::success(); }
+struct LibPrefixName {
+  void operator()(StringRef File, raw_ostream &PathBuilder) const {
+    PathBuilder << "lib" << File;
+  }
 };
 
 TEST_F(FileSearcherTest, findsFileWithPrefix) {
   createPaths({"first/boo", "second/libboo", "first/foo", "second/libfoo.txt",
                "third/libfoo", "third/libboo"});
-  makeSearcher<LibPrefixFile>("first", "second", "third");
+  makeSearcher<AnyFile, LibPrefixName>("first", "second", "third");
 
   assertFinds("boo", "second/libboo");
   assertFinds("foo", "third/libfoo");
@@ -204,10 +205,7 @@ TEST_F(FileSearcherTest, findsFileWithPrefix) {
 }
 
 struct MagicFile {
-  static constexpr const char *Suffix = "";
-  static constexpr const char *Prefix = "";
-
-  static Error validate(file_t &FD) {
+  Error operator()(file_t &FD) const {
     char buffer[4];
     ::read(FD, buffer, 4);
     if (strncmp(buffer, "1337", 4) == 0) {
@@ -221,7 +219,7 @@ struct MagicFile {
 TEST_F(FileSearcherTest, findsFileWithSpecialMagic) {
   createPaths({"first/boo", "second/boo", "first/goo", "second/moo"});
   createPaths({"first/woo", "second/goo", "third/boo", "third/hehe"}, "1337");
-  makeSearcher<MagicFile>("first", "second", "third");
+  makeSearcher<MagicFile, BasicName>("first", "second", "third");
 
   assertFinds("boo", "third/boo");
   assertFinds("woo", "first/woo");

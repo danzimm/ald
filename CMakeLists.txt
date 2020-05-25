@@ -3,6 +3,7 @@ set(ALD_SOURCE_DIR ${ALD_MAIN_SRC_DIR})
 set(ALD_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
 add_llvm_component_library(LLVMAldy
+  Aldy/Aldy.cpp
   MachO/Builder.cpp
   MachO/File.cpp
   MachO/Visitor.cpp

@@ -2,6 +2,8 @@
 
 #include "ald/ald.h"
 
+#include "Aldy/Aldy.h"
+
 #include "MachO/Builder.h"
 #include "MachO/File.h"
 #include "MachO/Visitor.h"
@@ -31,22 +33,25 @@ static cl::list<std::string> InputFilenames(cl::Positional,
                                             cl::desc("<input object files>"),
                                             cl::ZeroOrMore);
 
-static cl::list<std::string>
-    Libraries("l", cl::Prefix, cl::ZeroOrMore,
-              cl::desc("Specify which libraries to link against"));
 static cl::list<std::string> LibrarySearchPaths(
     "L", cl::Prefix, cl::ZeroOrMore,
     cl::desc(
         "Specify additional directories in which to search for libraries"));
-
-static cl::list<std::string>
-    Frameworks("framework", cl::ZeroOrMore,
-               cl::desc("Specify which frameworks to link against"));
 static cl::list<std::string> FrameworkSearchPaths(
     "F", cl::Prefix, cl::ZeroOrMore,
     cl::desc(
         "Specify additional directories in which to search for frameworks"));
 
+static cl::list<std::string>
+    Libraries("l", cl::Prefix, cl::ZeroOrMore,
+              cl::desc("Specify which libraries to link against"));
+static cl::list<std::string>
+    Frameworks("framework", cl::ZeroOrMore,
+               cl::desc("Specify which frameworks to link against"));
+
+static cl::list<std::string>
+    Prefixes("syslibroot", cl::ZeroOrMore,
+             cl::desc("Specify SDK prefixes to prepend to every search path"));
 static cl::opt<bool> DontAddStandardSearchPaths(
     "Z",
     cl::desc(
@@ -209,6 +214,9 @@ int main(int argc, char **argv) {
   if (Dummy) {
     reportStatus("Passed dummy");
   }
+
+  Aldy Al(Prefixes, LibrarySearchPaths, FrameworkSearchPaths,
+          DontAddStandardSearchPaths);
 
   Context Ctx;
   Ctx.loadFiles(InputFilenames);

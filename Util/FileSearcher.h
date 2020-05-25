@@ -9,8 +9,6 @@
 
 #include "ADT/DataTypes.h"
 
-#include <iostream>
-
 namespace llvm {
 
 namespace ald {
@@ -39,30 +37,31 @@ public:
   ///          When this function returns true the visitor will stop early.
   /// \return Whether or not the visitor returned early.
   template <typename Visitor> bool visit(Visitor V) const {
-    for (const Path &Prefix : SDKPrefixes_) {
-      for (StringRef Path : Absolute_) {
-        if (V(Prefix + Path)) {
+    for (StringRef P : Paths_) {
+      if (P.front() == '/') {
+        for (const Path &Prefix : SDKPrefixes_) {
+          if (V(Prefix + P)) {
+            return true;
+          }
+        }
+      } else { // if (P.first() != '/') {
+        if (V(Cwd_ + P)) {
           return true;
         }
-      }
-    }
-    for (StringRef Path : Relative_) {
-      if (V(Cwd_ + Path)) {
-        return true;
       }
     }
     return false;
   }
 
   size_t size() const {
-    return SDKPrefixes_.size() * Absolute_.size() + Relative_.size();
+    return SDKPrefixes_.size() * NumAbsolute_ + (Paths_.size() - NumAbsolute_);
   }
 
 private:
   PathList SDKPrefixes_;
   Path Cwd_;
-  SmallVector<std::string, 8> Absolute_;
-  SmallVector<std::string, 8> Relative_;
+  SmallVector<std::string, 16> Paths_;
+  size_t NumAbsolute_;
 };
 
 namespace details {

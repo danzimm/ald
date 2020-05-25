@@ -11,15 +11,24 @@ namespace ald {
 
 namespace {
 
-PathList processSDKPrefixes(const std::vector<std::string> &SDKPrefixes) {
+PathList processSDKPrefixes(const std::vector<std::string> &SDKPrefixes,
+                            const std::unique_ptr<Path> &Cwd) {
   PathList RV;
-  for (const std::string &Prefix : SDKPrefixes) {
-    RV.emplace_back(Prefix);
-    auto &ProcessedPrefix = RV.back();
-    sys::fs::make_absolute(ProcessedPrefix);
-    if (ProcessedPrefix.back() == '/') {
-      ProcessedPrefix.pop_back();
+  if (!SDKPrefixes.empty()) {
+    for (const std::string &Prefix : SDKPrefixes) {
+      RV.emplace_back(Prefix);
+      auto &ProcessedPrefix = RV.back();
+      if (Cwd != nullptr) {
+        sys::fs::make_absolute(*Cwd, ProcessedPrefix);
+      } else {
+        sys::fs::make_absolute(ProcessedPrefix);
+      }
+      if (ProcessedPrefix.back() == '/') {
+        ProcessedPrefix.pop_back();
+      }
     }
+  } else {
+    RV.push_back(Path(""));
   }
   return RV;
 }
@@ -30,29 +39,27 @@ SearchPath::SearchPath(const std::vector<std::string> &SDKPrefixes,
                        const std::vector<std::string> &Paths,
                        const SmallVector<StringRef, 2> &DefaultPaths,
                        std::unique_ptr<Path> Cwd)
-    : SDKPrefixes_(processSDKPrefixes(SDKPrefixes)) {
+    : SDKPrefixes_(processSDKPrefixes(SDKPrefixes, Cwd)) {
   if (Cwd == nullptr) {
     sys::fs::current_path(Cwd_);
   } else {
     Cwd_.assign(*Cwd);
   }
-
-  auto V = [&](StringRef Path) {
-    if (Path.empty()) {
-      return;
-    }
-    if (Path.front() == '/') {
-      Absolute_.emplace_back(Path.str());
-    } else {
-      Relative_.emplace_back(Path.str());
-    }
-  };
+  if (Cwd_.back() != '/') {
+    Cwd_.push_back('/');
+  }
 
   for (const std::string &Path : Paths) {
-    V(Path);
+    Paths_.push_back(Path);
+    if (Path.front() == '/') {
+      NumAbsolute_ += 1;
+    }
   }
   for (StringRef Path : DefaultPaths) {
-    V(Path);
+    Paths_.push_back(Path.str());
+    if (Path.front() == '/') {
+      NumAbsolute_ += 1;
+    }
   }
 }
 

@@ -16,6 +16,7 @@ class FileScope {
 public:
   FileScope(std::initializer_list<const char *> Paths = {}) {
     fs::createUniqueDirectory("ald.FileSearcherScope.XXXXXX", Tmp_);
+    fs::createUniqueDirectory("ald.FileSearcherScopeCwd.XXXXXX", Cwd_);
   }
 
   ~FileScope() { sys::fs::remove_directories(Tmp_); }
@@ -30,7 +31,7 @@ public:
   void createPath(StringRef P, const char *Contents = nullptr) {
     ASSERT_FALSE(P.empty());
 
-    Twine FP = Tmp_ + "/" + P;
+    Twine FP = (P.front() == '/') ? (Tmp_ + P) : (Cwd_ + "/" + P);
     if (P.back() == '/') {
       mkdir_(FP);
     } else {
@@ -63,9 +64,11 @@ public:
   }
 
   const Path &base() { return Tmp_; }
+  const Path &cwd() { return Cwd_; }
 
 private:
   Path Tmp_;
+  Path Cwd_;
 };
 
 class FileSearcherTest : public ::testing::Test {
@@ -81,15 +84,26 @@ public:
     ASSERT_TRUE(bool(POrErr)) << lineno << ": Failed to find '" << File
                               << "': " << POrErr.takeError();
     auto &P = *POrErr;
-    auto &Base = FS->base();
 
-    ASSERT_TRUE(P.substr(0, Base.size()).equals(Base))
-        << lineno << ": " << P.str()
-        << " does not start with the tmp directory as a prefix: "
-        << Base.str().str();
-    ASSERT_TRUE(P.substr(Base.size() + 1).equals(Where))
-        << lineno << ": " << P.substr(Base.size() + 1)
-        << " does not match expected '" << Where << "'";
+    if (Where[0] == '/') {
+      auto &Base = FS->base();
+      ASSERT_TRUE(P.substr(0, Base.size()).equals(Base))
+          << lineno << ": " << P.str()
+          << " does not start with the tmp directory as a prefix: "
+          << Base.str().str();
+      ASSERT_TRUE(P.substr(Base.size() + 1).equals(Where + 1))
+          << lineno << ": " << P.substr(Base.size() + 1)
+          << " does not match expected '" << (Where + 1) << "'";
+    } else {
+      auto &Cwd = FS->cwd();
+      ASSERT_TRUE(P.substr(0, Cwd.size()).equals(Cwd))
+          << lineno << ": " << P.str()
+          << " does not start with the local directory as a prefix: "
+          << Cwd.str().str();
+      ASSERT_TRUE(P.substr(Cwd.size() + 1).equals(Where))
+          << lineno << ": " << P.substr(Cwd.size() + 1)
+          << " does not match expected '" << Where << "'";
+    }
   }
 
   void assertDoesntFind_(const char *File, int lineno) {
@@ -120,8 +134,15 @@ public:
 
   template <typename Validator, typename NamingScheme, typename... Ts>
   void makeSearcher_(Ts &&... args) {
-    SP = std::make_unique<SearchPath>(std::forward<Ts>(args)...);
+    SP = std::make_unique<SearchPath>(std::forward<Ts>(args)...,
+                                      std::make_unique<Path>(FS->cwd()));
     S = std::make_unique<FileSearcher<Validator, NamingScheme>>(*SP);
+  }
+
+  template <typename... Ts> void setPrefixes(Ts... args) {
+    Prefixes = std::vector<std::string>{
+        (args[0] == '/' ? (FS->base() + args).str() : args)...,
+    };
   }
 
   std::unique_ptr<FileScope> FS;
@@ -164,41 +185,42 @@ TEST_F(FileSearcherTest, doesntFindEmpty) {
 }
 
 TEST_F(FileSearcherTest, findsSingleFile) {
-  createPaths({"boo"});
+  createPaths({"/boo"});
   makeSearcher<AnyFile, BasicName>("/");
 
-  assertFinds("boo", "boo");
+  assertFinds("boo", "/boo");
   assertDoesntFind("boo2");
 }
 
 TEST_F(FileSearcherTest, findsFileInSecondDir) {
-  createPaths({"first/hoo", "second/boo"});
+  createPaths({"/first/hoo", "/second/boo"});
   makeSearcher<AnyFile, BasicName>("/first", "/second");
 
-  assertFinds("boo", "second/boo");
-  assertFinds("hoo", "first/hoo");
+  assertFinds("boo", "/second/boo");
+  assertFinds("hoo", "/first/hoo");
   assertDoesntFind("hoo2");
 }
 
 TEST_F(FileSearcherTest, ignoresNonExistentDirectories) {
-  createPaths({"first/foo", "third/hoo"});
+  createPaths({"/first/foo", "/third/hoo"});
   makeSearcher<AnyFile, BasicName>("/first", "/second", "/third");
 
-  assertFinds("foo", "first/foo");
-  assertFinds("hoo", "third/hoo");
+  assertFinds("foo", "/first/foo");
+  assertFinds("hoo", "/third/hoo");
   assertDoesntFind("goo");
 }
 
 TEST_F(FileSearcherTest, defaultPathsGoLast) {
-  createPaths({"first/foo", "first/goo", "default/bar", "important/foo",
-               "important/baz", "default/foo", "default/goo", "default/baz"});
+  createPaths({"/first/foo", "/first/goo", "/default/bar", "/important/foo",
+               "/important/baz", "/default/foo", "/default/goo",
+               "/default/baz"});
   makeSearcherWithDefault<AnyFile, BasicName>("/default", "/important",
                                               "/first");
 
-  assertFinds("foo", "important/foo");
-  assertFinds("bar", "default/bar");
-  assertFinds("baz", "important/baz");
-  assertFinds("goo", "first/goo");
+  assertFinds("foo", "/important/foo");
+  assertFinds("bar", "/default/bar");
+  assertFinds("baz", "/important/baz");
+  assertFinds("goo", "/first/goo");
   assertDoesntFind("moo");
 }
 
@@ -209,12 +231,12 @@ struct TxtName {
 };
 
 TEST_F(FileSearcherTest, findsFileWithSuffix) {
-  createPaths({"first/boo", "second/boo.txt", "first/foo.txt", "second/foo",
-               "third/foo.txt", "third/boo.txt"});
+  createPaths({"/first/boo", "/second/boo.txt", "/first/foo.txt", "/second/foo",
+               "/third/foo.txt", "/third/boo.txt"});
   makeSearcher<AnyFile, TxtName>("/first", "/second", "/third");
 
-  assertFinds("boo", "second/boo.txt");
-  assertFinds("foo", "first/foo.txt");
+  assertFinds("boo", "/second/boo.txt");
+  assertFinds("foo", "/first/foo.txt");
   assertDoesntFind("hoo2");
 }
 
@@ -225,12 +247,12 @@ struct LibPrefixName {
 };
 
 TEST_F(FileSearcherTest, findsFileWithPrefix) {
-  createPaths({"first/boo", "second/libboo", "first/foo", "second/libfoo.txt",
-               "third/libfoo", "third/libboo"});
+  createPaths({"/first/boo", "/second/libboo", "/first/foo",
+               "/second/libfoo.txt", "/third/libfoo", "/third/libboo"});
   makeSearcher<AnyFile, LibPrefixName>("/first", "/second", "/third");
 
-  assertFinds("boo", "second/libboo");
-  assertFinds("foo", "third/libfoo");
+  assertFinds("boo", "/second/libboo");
+  assertFinds("foo", "/third/libfoo");
   assertDoesntFind("baz");
 }
 
@@ -247,13 +269,75 @@ struct MagicFile {
 };
 
 TEST_F(FileSearcherTest, findsFileWithSpecialMagic) {
-  createPaths({"first/boo", "second/boo", "first/goo", "second/moo"});
-  createPaths({"first/woo", "second/goo", "third/boo", "third/hehe"}, "1337");
+  createPaths({"/first/boo", "/second/boo", "/first/goo", "/second/moo"});
+  createPaths({"/first/woo", "/second/goo", "/third/boo", "/third/hehe"},
+              "1337");
   makeSearcher<MagicFile, BasicName>("/first", "/second", "/third");
 
-  assertFinds("boo", "third/boo");
-  assertFinds("woo", "first/woo");
-  assertFinds("goo", "second/goo");
-  assertFinds("hehe", "third/hehe");
+  assertFinds("boo", "/third/boo");
+  assertFinds("woo", "/first/woo");
+  assertFinds("goo", "/second/goo");
+  assertFinds("hehe", "/third/hehe");
   assertDoesntFind("hoohoo");
+}
+
+TEST_F(FileSearcherTest, findsLocalFiles) {
+  createPaths({"/first/boo", "local/boo"});
+  makeSearcher<AnyFile, BasicName>("local", "/first");
+
+  assertFinds("boo", "local/boo");
+  assertDoesntFind("nope");
+}
+
+TEST_F(FileSearcherTest, findsFilesWithMultipleSDKPrefixes) {
+  createPaths({"/first/boo", "/second/hoo", "/first/goo", "/third/",
+               "/prefix/first/boo", "/prefix/second/hoo",
+               "/prefix/third/snoo"});
+  setPrefixes("/prefix", "/");
+  makeSearcher<AnyFile, BasicName>("/first", "/second", "/third");
+
+  assertFinds("boo", "/prefix/first/boo");
+  assertFinds("hoo", "/prefix/second/hoo");
+  assertFinds("goo", "/first/goo");
+  assertFinds("snoo", "/prefix/third/snoo");
+  assertDoesntFind("meow");
+}
+
+TEST_F(FileSearcherTest, findsFilesInLocalPrefixes) {
+  createPaths({"/boo", "/prefix/boo", "prefix/boo"});
+  setPrefixes("prefix", "/prefix", "/");
+  makeSearcher<AnyFile, BasicName>("/");
+
+  assertFinds("boo", "prefix/boo");
+}
+
+TEST_F(FileSearcherTest, findsFilesInCwd) {
+  createPaths({"boo", "foo"});
+  makeSearcher<AnyFile, BasicName>(".");
+
+  assertFinds("boo", "./boo");
+  assertFinds("foo", "./foo");
+}
+
+TEST_F(FileSearcherTest, prefixDefaultsToRoot) {
+  createPaths({"/boo"});
+  setPrefixes();
+  makeSearcher<AnyFile, BasicName>(FS->base().str().str());
+
+  assertFinds("boo", "/boo");
+}
+
+struct FrameworkName {
+  raw_ostream &operator()(StringRef File, raw_ostream &OS) const {
+    return OS << File << ".framework/" << File;
+  }
+};
+
+TEST_F(FileSearcherTest, findsFrameworks) {
+  createPaths({"/boo.framework/boo", "/foo.framework/", "/new.framework/n"});
+  makeSearcher<AnyFile, FrameworkName>("/");
+
+  assertFinds("boo", "/boo.framework/boo");
+  assertDoesntFind("foo");
+  assertDoesntFind("new");
 }

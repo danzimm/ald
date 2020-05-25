@@ -2,19 +2,17 @@
 
 #pragma once
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "ADT/DataTypes.h"
+
 namespace llvm {
 
 namespace ald {
 
-using file_t = int;
-using Path = SmallString<256>;
-using PathList = SmallVector<Path, 8>;
 using ConcatPathList = std::initializer_list<Twine>;
 
 namespace details {

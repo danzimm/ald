@@ -9,6 +9,53 @@ namespace llvm {
 
 namespace ald {
 
+namespace {
+
+PathList processSDKPrefixes(const std::vector<std::string> &SDKPrefixes) {
+  PathList RV;
+  for (const std::string &Prefix : SDKPrefixes) {
+    RV.emplace_back(Prefix);
+    auto &ProcessedPrefix = RV.back();
+    sys::fs::make_absolute(ProcessedPrefix);
+    if (ProcessedPrefix.back() == '/') {
+      ProcessedPrefix.pop_back();
+    }
+  }
+  return RV;
+}
+
+} // namespace
+
+SearchPath::SearchPath(const std::vector<std::string> &SDKPrefixes,
+                       const std::vector<std::string> &Paths,
+                       const SmallVector<StringRef, 2> &DefaultPaths,
+                       std::unique_ptr<Path> Cwd)
+    : SDKPrefixes_(processSDKPrefixes(SDKPrefixes)) {
+  if (Cwd == nullptr) {
+    sys::fs::current_path(Cwd_);
+  } else {
+    Cwd_.assign(*Cwd);
+  }
+
+  auto V = [&](StringRef Path) {
+    if (Path.empty()) {
+      return;
+    }
+    if (Path.front() == '/') {
+      Absolute_.emplace_back(Path.str());
+    } else {
+      Relative_.emplace_back(Path.str());
+    }
+  };
+
+  for (const std::string &Path : Paths) {
+    V(Path);
+  }
+  for (StringRef Path : DefaultPaths) {
+    V(Path);
+  }
+}
+
 namespace details {
 
 namespace {
@@ -47,37 +94,34 @@ char FileNotFoundInSearchPath::ID;
 
 PathList FileSearcherImpl::getAllPaths() const {
   PathList RV;
-  RV.reserve(DefaultPaths_.size() + ExtraPaths_.size());
-  RV.insert(RV.end(), ExtraPaths_.begin(), ExtraPaths_.end());
-  RV.insert(RV.end(), DefaultPaths_.begin(), DefaultPaths_.end());
+  RV.reserve(SearchPath_.size());
+  SearchPath_.visit([&RV](const Twine &File) {
+    RV.emplace_back();
+    File.toVector(RV.back());
+    return false;
+  });
   return RV;
 }
 
 Expected<Path> FileSearcherImpl::searchInternal(StringRef File) const {
   Path RV;
 
-  auto Visitor = [&](const Path &P) -> bool {
-    return searchForFileInDirectory(File, P, RV) && validatePath(RV);
+  auto Visitor = [&](const Twine &Dir) -> bool {
+    return searchForFileInDirectory(File, Dir, RV) && validatePath(RV);
   };
 
-  for (const Path &P : ExtraPaths_) {
-    if (Visitor(P)) {
-      return std::move(RV);
-    }
-  }
-
-  for (const Path &P : DefaultPaths_) {
-    if (Visitor(P)) {
-      return std::move(RV);
-    }
+  if (SearchPath_.visit(Visitor)) {
+    return std::move(RV);
   }
 
   return make_error<FileNotFoundInSearchPath>(File, getAllPaths());
 }
 
-bool FileSearcherImpl::searchForFileInDirectory(StringRef File, StringRef Dir,
+bool FileSearcherImpl::searchForFileInDirectory(StringRef File,
+                                                const Twine &Dir,
                                                 Path &Result) {
-  Result = Dir;
+  Result.clear();
+  Dir.toVector(Result);
   sys::path::append(Result, File);
   if (!sys::fs::exists(Result)) {
     return false;
@@ -90,16 +134,6 @@ bool FileSearcherImpl::validatePath(StringRef File) const {
   if (auto FD = sys::fs::openNativeFileForRead(File)) {
     RV = validateFile(*FD);
     sys::fs::closeFile(*FD);
-  }
-  return RV;
-}
-
-Path FileSearcherImpl::processPath(const Twine &P) {
-  Path RV;
-  if (sys::path::is_absolute(P)) {
-    P.toVector(RV);
-  } else {
-    sys::fs::make_absolute(P, RV);
   }
   return RV;
 }

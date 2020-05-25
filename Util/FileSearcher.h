@@ -9,22 +9,67 @@
 
 #include "ADT/DataTypes.h"
 
+#include <iostream>
+
 namespace llvm {
 
 namespace ald {
 
-using ConcatPathList = std::initializer_list<Twine>;
+/// This class houses the model backing a \c FileSearcher. The user must
+/// construct one of these in order to tell \c FileSearcher where to look for
+/// files.
+class SearchPath {
+public:
+  /// Construct a SearchPath.
+  /// \param SDKPrefixes  A list of SDKs to use as prefixes. If this list is
+  ///                     empty then the default prefix '/' will be used.
+  /// \param Paths        A list of paths the user specified to search within.
+  /// \param DefaultPaths A list of default paths to search within. These paths
+  ///                     will be searched after all the paths in \c Paths are
+  ///                     searched.
+  /// \param Cwd          An optional CWD to root all relative paths against.
+  SearchPath(const std::vector<std::string> &SDKPrefixes,
+             const std::vector<std::string> &Paths,
+             const SmallVector<StringRef, 2> &DefaultPaths,
+             std::unique_ptr<Path> Cwd = nullptr);
+
+  /// Visit each of the search paths that were used to initialize this object.
+  /// \param V The visitor that should be invoked for each search path. Note
+  ///          this visitor should implement `bool operator()(const Twine&)`.
+  ///          When this function returns true the visitor will stop early.
+  /// \return Whether or not the visitor returned early.
+  template <typename Visitor> bool visit(Visitor V) const {
+    for (const Path &Prefix : SDKPrefixes_) {
+      for (StringRef Path : Absolute_) {
+        if (V(Prefix + Path)) {
+          return true;
+        }
+      }
+    }
+    for (StringRef Path : Relative_) {
+      if (V(Cwd_ + Path)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  size_t size() const {
+    return SDKPrefixes_.size() * Absolute_.size() + Relative_.size();
+  }
+
+private:
+  PathList SDKPrefixes_;
+  Path Cwd_;
+  SmallVector<std::string, 8> Absolute_;
+  SmallVector<std::string, 8> Relative_;
+};
 
 namespace details {
 
 class FileSearcherImpl {
 public:
   virtual ~FileSearcherImpl() {}
-
-  /// Adds a new user defined \c Path to the list of extra search directories.
-  void addDirectory(const Twine &Dir) {
-    ExtraPaths_.emplace_back(processPath(Dir));
-  }
 
   /// Returns all the directories that will be searched in the order that they
   /// will be searched.
@@ -35,8 +80,9 @@ public:
   }
 
 protected:
-  explicit FileSearcherImpl(const ConcatPathList &DefaultPaths = {})
-      : DefaultPaths_(processPaths(DefaultPaths)) {}
+  virtual bool validateFile(file_t &) const { return true; }
+
+  explicit FileSearcherImpl(const SearchPath &SP) : SearchPath_(SP) {}
 
   Expected<Path> searchInternal(StringRef File) const;
 
@@ -49,7 +95,7 @@ protected:
   /// \return \c true if \c File was found in \c Path and \c false otherwise.
   ///         If \c true then \c Result will also be set to the full path to
   ///         the found file.
-  static bool searchForFileInDirectory(StringRef File, StringRef Dir,
+  static bool searchForFileInDirectory(StringRef File, const Twine &Dir,
                                        Path &Result);
 
   /// This is called by \c search after a file is found. If this returns true
@@ -60,20 +106,9 @@ protected:
   /// \c validateFile.
   /// \param File The full path to a File that exists but needs to be validated.
   /// \return Whether or not the \c File is valid.
-  virtual bool validatePath(StringRef Path) const;
+  bool validatePath(StringRef Path) const;
 
-  virtual bool validateFile(file_t &) const { return true; }
-
-  /// Convert \c Path into an absolute path.
-  static Path processPath(const Twine &P);
-  static PathList processPaths(const ConcatPathList &PS) {
-    PathList RV;
-    std::transform(PS.begin(), PS.end(), std::back_inserter(RV), processPath);
-    return RV;
-  }
-
-  PathList DefaultPaths_;
-  PathList ExtraPaths_;
+  const SearchPath &SearchPath_;
 };
 
 } // end namespace details
@@ -97,10 +132,8 @@ template <typename Validator, typename NamingScheme>
 class FileSearcher : public details::FileSearcherImpl {
 public:
   /// Construct a new FileSearcher.
-  /// \param DefaultPaths A list of directories to consult by default when
-  ///                     searching for a file.
-  explicit FileSearcher(const ConcatPathList &DefaultPaths = {})
-      : FileSearcherImpl(DefaultPaths) {}
+  /// \param SP The \c SearchPath to consult when searching for a file.
+  explicit FileSearcher(const SearchPath &SP) : FileSearcherImpl(SP) {}
 
   FileSearcher(FileSearcher &&) = default;
   FileSearcher &operator=(FileSearcher &&) = default;

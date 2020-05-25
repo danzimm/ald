@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
